@@ -2615,6 +2615,8 @@ function showPage(p){
   if(p==='email-vorlagen') emailVorlagenRender();
   updateBadges();
   closeSidebar();
+  // Mobile Bottom Nav
+  mobNavAktiv(p);
 }
 
 // ══════════════════════════════════════════
@@ -9852,6 +9854,8 @@ async function sbNachLadenAlles(){
 // ── Einzelnen Key syncen ──
 async function sbSync(key, value){
   if(!sbClient||!sbUser||!sbTabelle_ok) return;
+  sbRealtimePause = true;
+  setTimeout(()=>{ sbRealtimePause=false; }, 500);
   try{
     const now=new Date().toISOString();
     const { error }=await sbClient.from('shk_data').upsert({
@@ -9925,6 +9929,9 @@ function sbStatusAktualisieren(eingeloggt){
   const keyEl=document.getElementById('s-sb-key');
   if(urlEl) urlEl.value=localStorage.getItem('shk_sb_url')||'';
   if(keyEl) keyEl.value=localStorage.getItem('shk_sb_key')||'';
+  // Realtime-Sync starten/stoppen
+  if(eingeloggt && sbUser){ try{ sbRealtimeStart(); }catch(e){} }
+  else { try{ sbRealtimeStop(); }catch(e){} }
   if(eingeloggt && sbUser){
     if(bar){ bar.style.display='flex'; }
     if(emailEl) emailEl.textContent=sbUser.email;
@@ -10291,21 +10298,9 @@ function sbSyncStatusAnzeigen(aktiv){
   if(bar) bar.title = aktiv ? 'Echtzeit-Sync aktiv' : 'Verbindung unterbrochen';
 }
 
-// Echtzeit nach Login starten
-const _origSbStatusAktualisieren = sbStatusAktualisieren;
-function sbStatusAktualisieren(eingeloggt){
-  _origSbStatusAktualisieren(eingeloggt);
-  if(eingeloggt && sbUser){ sbRealtimeStart(); }
-  else { sbRealtimeStop(); }
-}
+// Realtime-Start direkt in sbStatusAktualisieren integriert
 
-// sbSync patchen: Pause während eigener Änderungen
-const _origSbSync = sbSync;
-async function sbSync(key, value){
-  sbRealtimePause = true;
-  await _origSbSync(key, value);
-  setTimeout(()=>{ sbRealtimePause=false; }, 500);
-}
+// sbRealtimePause wird direkt in sbSync gesetzt (kein Patch)
 
 // ══════════════════════════════════════════
 //  E-MAIL-VORLAGEN
@@ -10633,12 +10628,7 @@ function mobNavAktiv(page){
   if(btn) btn.classList.add('active');
 }
 
-// showPage patchen für mobile nav
-const _showPageOrig = showPage;
-function showPage(p){
-  _showPageOrig(p);
-  mobNavAktiv(p);
-}
+
 
 // ════ SERIAL-KEY SYSTEM ════
 // ══════════════════════════════════════════
